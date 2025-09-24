@@ -159,7 +159,7 @@ document.getElementById("fileInput").addEventListener("change", function(e) {
       buttons.className = "buttons";
 
       const excelBtn = document.createElement("button");
-      excelBtn.textContent = "⬇ Excel";
+      excelBtn.textContent = "⬇ Excel (Raw data)";
       excelBtn.addEventListener("click", () => {
         let ws = XLSX.utils.json_to_sheet(exportData, {header: exportCols});
         let wb = XLSX.utils.book_new();
