@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dynamic Flow Plots</title>
+  <!-- Plotly, XLSX, JSZip, FileSaver -->
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <h2>Upload Flow Data Files (.txt)</h2>
+  <input type="file" id="fileInput" accept=".txt" multiple>
+  <div id="globalButtons" style="display:none;" class="global-box">
+    <span class="label">Download All:</span>
+    <button id="downloadAllPNGs">⬇ All PNGs (ZIP)</button>
+    <button id="downloadAllExcels">⬇ All Excels (ZIP)</button>
+    <button id="downloadCombinedExcel">⬇ Combined Excel (Sheets)</button>
+  </div>
+
+  <div id="plots"></div>
+
+  <!-- Script -->
+  <script src="script.js"></script>
+</body>
+</html>
