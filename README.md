@@ -71,9 +71,3 @@ README.md    → documentation
 - [SheetJS (XLSX)](https://github.com/SheetJS/sheetjs) → Excel export  
 - [JSZip](https://stuk.github.io/jszip/) + FileSaver → ZIP download  
 
----
-
-## License
-
-MIT License © 2025
-
