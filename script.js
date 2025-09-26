@@ -2,6 +2,13 @@ const allPlots = [];
 const colorPalette = ["#3498db", "#2ecc71", "#e67e22", "#9b59b6", "#e74c3c", "#1abc9c", "#f39c12"];
 let plotCounter = 0;
 
+// Extract label from filename (everything after "_")
+function getLabelFromFilename(filename) {
+  const base = filename.replace(/\.[^/.]+$/, ""); // remove extension
+  const parts = base.split("_");
+  return parts.length > 1 ? parts.slice(1).join("_") : base;
+}
+
 document.getElementById("fileInput").addEventListener("change", function(e) {
   const files = e.target.files;
   if (!files.length) return;
@@ -40,45 +47,49 @@ document.getElementById("fileInput").addEventListener("change", function(e) {
 
       let uniqueUsers = [...new Set(data.map(d => d.User))].sort((a,b)=>a-b);
       let traces = [];
-      let layout, exportData, exportCols;
-
+      let layout, exportData, exportCols, plotType = "";
       const traceColor = colorPalette[plotCounter % colorPalette.length];
+      const label = getLabelFromFilename(file.name);
 
       if (uniqueUsers.length === 1 && uniqueUsers[0] === 1) {
-        const trace = {
+        // --- Qband Setting 1 ---
+        plotType = "Qband1";
+        traces = [{
           x: data.map(d => d.DPM2),
           y: data.map(d => d.Flow),
-          mode: "markers+lines", type: "scatter", name: "User=1",
+          mode: "markers+lines", type: "scatter", name: label,
           line: {color: traceColor}, marker: {color: traceColor}
-        };
-        traces = [trace];
+        }];
         layout = {
           title: "Qband at Setting 1",
           xaxis: { title: "Dvp [bar]", range: [0,7] },
-          yaxis: { title: "Flow [m³/h]", range: [0, Math.max(...data.map(d=>d.Flow))*1.1] },
-          legend: { orientation: "h", y: -0.25, x: 0.5, xanchor: "center" }
+          yaxis: { title: "Flow [m³/h]" },
+          legend: { orientation: "h", y: -0.4, x: 0.5, xanchor: "center" }
         };
         exportData = data.map(d => ({DPM2: d.DPM2, Flow: d.Flow}));
         exportCols = ["DPM2","Flow"];
 
       } else if (uniqueUsers.length === 1 && uniqueUsers[0] === 10) {
-        const trace = {
+        // --- Qband Setting 10 ---
+        plotType = "Qband10";
+        traces = [{
           x: data.map(d => d.DPM2),
           y: data.map(d => d.Flow),
-          mode: "markers+lines", type: "scatter", name: "User=10",
+          mode: "markers+lines", type: "scatter", name: label,
           line: {color: traceColor}, marker: {color: traceColor}
-        };
-        traces = [trace];
+        }];
         layout = {
           title: "Qband at Setting 10",
           xaxis: { title: "Dvp [bar]", range: [0,7] },
-          yaxis: { title: "Flow [m³/h]", range: [0, Math.max(...data.map(d=>d.Flow))*1.1] },
-          legend: { orientation: "h", y: -0.25, x: 0.5, xanchor: "center" }
+          yaxis: { title: "Flow [m³/h]" },
+          legend: { orientation: "h", y: -0.4, x: 0.5, xanchor: "center" }
         };
         exportData = data.map(d => ({DPM2: d.DPM2, Flow: d.Flow}));
         exportCols = ["DPM2","Flow"];
 
       } else {
+        // --- Flow characteristic ---
+        plotType = "FlowChar";
         let grouped = {};
         data.forEach(d => {
           if (!grouped[d.User]) grouped[d.User] = [];
@@ -89,19 +100,19 @@ document.getElementById("fileInput").addEventListener("change", function(e) {
 
         const mainTrace = {
           x: users, y: flows,
-          mode: "markers+lines", type: "scatter", name: "Flow characteristic",
+          mode: "markers+lines", type: "scatter", name: label,
           line: {color: traceColor}, marker: {color: traceColor}
         };
 
+        // ✅ Add limits only for single plots
+        let limitTraces = [];
         const setting20 = 2;
         const setting100 = 10;
         const idx20 = users.indexOf(setting20);
         const idx100 = users.indexOf(setting100);
-
         if (idx20 !== -1 && idx100 !== -1) {
           const f20 = flows[idx20];
           const f100 = flows[idx100];
-
           const upper20 = f20 * 1.25;
           const lower20 = f20 * 0.75;
           const upper100 = f100 * 1.10;
@@ -118,36 +129,25 @@ document.getElementById("fileInput").addEventListener("change", function(e) {
             return lower20 + (lower100 - lower20) * ratio;
           });
 
-          const upperTrace = {
-            x: users, y: upper,
-            mode: "lines+markers",
-            line: {color: "red", dash: "dash"},
-            marker: {color: "red"},
-            name: "Upper limit"
-          };
-          const lowerTrace = {
-            x: users, y: lower,
-            mode: "lines+markers",
-            line: {color: "red", dash: "dash"},
-            marker: {color: "red"},
-            name: "Lower limit"
-          };
-
-          traces = [mainTrace, upperTrace, lowerTrace];
-        } else {
-          traces = [mainTrace];
+          limitTraces = [
+            { x: users, y: upper, mode: "lines", line: {color: "red", dash: "dash"}, name: "Upper limit" },
+            { x: users, y: lower, mode: "lines", line: {color: "red", dash: "dash"}, name: "Lower limit" }
+          ];
         }
+
+        traces = [mainTrace, ...limitTraces];
 
         layout = {
           title: "Flow characteristic",
           xaxis: { title: "Setting", range: [0,10], dtick: 1 },
-          yaxis: { title: "Flow [m³/h]", range: [0, Math.max(...flows)*1.1] },
-          legend: { orientation: "h", y: -0.25, x: 0.5, xanchor: "center" }
+          yaxis: { title: "Flow [m³/h]" },
+          legend: { orientation: "h", y: -0.4, x: 0.5, xanchor: "center" }
         };
         exportData = users.map((u,i)=>({User:u, Flow:flows[i]}));
         exportCols = ["User","Flow"];
       }
 
+      // ---- Render each single plot with buttons ----
       const container = document.createElement("div");
       container.className = "plot-container";
 
@@ -168,6 +168,9 @@ document.getElementById("fileInput").addEventListener("change", function(e) {
       });
       buttons.appendChild(excelBtn);
 
+      const plotDiv = document.createElement("div");
+      plotDiv.className = "plot";
+
       const pngBtn = document.createElement("button");
       pngBtn.textContent = "⬇ PNG";
       pngBtn.addEventListener("click", () => {
@@ -181,18 +184,14 @@ document.getElementById("fileInput").addEventListener("change", function(e) {
       buttons.appendChild(pngBtn);
 
       container.appendChild(buttons);
-
-      const plotDiv = document.createElement("div");
-      plotDiv.className = "plot";
       container.appendChild(plotDiv);
-
       plotsDiv.appendChild(container);
 
       Plotly.newPlot(plotDiv, traces, layout, {responsive: true}).then(() => {
-        Plotly.Plots.resize(plotDiv); // 👈 force resize after rendering
+        Plotly.Plots.resize(plotDiv);
       });
 
-      allPlots.push({fileName: file.name, plotDiv, exportData, exportCols});
+      allPlots.push({fileName: file.name, plotDiv, exportData, exportCols, plotType});
       document.getElementById("globalButtons").style.display = "inline-flex";
       plotCounter++;
     };
@@ -235,4 +234,53 @@ document.getElementById("downloadCombinedExcel").addEventListener("click", () =>
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
   });
   XLSX.writeFile(wb, "Combined_Data.xlsx");
+});
+
+// ---- Combined PNGs by type (3 files) ----
+document.getElementById("downloadCombinedPNG").addEventListener("click", async () => {
+  if (allPlots.length === 0) return;
+
+  const groups = { FlowChar: [], Qband1: [], Qband10: [] };
+  allPlots.forEach(item => {
+    if (groups[item.plotType]) groups[item.plotType].push(item.plotDiv);
+  });
+
+  for (let type of ["FlowChar", "Qband1", "Qband10"]) {
+    const plots = groups[type];
+    if (plots.length === 0) continue;
+
+    const combined = {data: [], layout: {}};
+    plots.forEach(gd => {
+      gd.data.forEach(trace => {
+        if (trace.name === "Upper limit" || trace.name === "Lower limit") return;
+        combined.data.push({...trace});
+      });
+    });
+
+    let titleText = "";
+    if (type === "FlowChar") titleText = "Flow characteristic";
+    if (type === "Qband1") titleText = "Qband at Setting 1";
+    if (type === "Qband10") titleText = "Qband at Setting 10";
+
+    combined.layout = {
+      title: titleText,
+      xaxis: {title: plots[0].layout.xaxis.title.text},
+      yaxis: {title: plots[0].layout.yaxis.title.text},
+      legend: { orientation: "h", y: -0.3, x: 0.5, xanchor: "center" },
+      width: 800, height: 500
+    };
+
+    const tempDiv = document.createElement("div");
+    document.body.appendChild(tempDiv);
+    await Plotly.newPlot(tempDiv, combined.data, combined.layout);
+
+    const url = await Plotly.toImage(tempDiv, {format:"png", width:800, height:500});
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${titleText.replace(/\s+/g,"_")}.png`;
+    a.click();
+
+    Plotly.purge(tempDiv);
+    tempDiv.remove();
+  }
 });
