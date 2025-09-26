@@ -24,9 +24,15 @@ This project helps load measurement data, plot charts (like Q-band), and export 
 2. Upload one or more `.txt` files  
 3. The app will create plots automatically  
 4. Use the buttons to:
-   - **⬇ Excel** → download table of data  
-   - **⬇ PNG** → download chart image  
-   - **⬇ All** → download everything in one ZIP
+   - **⬇ Excel (Raw data)** → download the table of data for a single plot  
+   - **⬇ PNG** → download the chart image for a single plot  
+   - **⬇ All PNGs** → download each individual PNG in one ZIP  
+   - **⬇ Combined Excel** → download one Excel file with all datasets in separate sheets  
+   - **⬇ Combined PNG** → download 3 PNGs:  
+     - Flow characteristic (all files overlayed, no limits)  
+     - Qband at Setting 1 (all files overlayed)  
+     - Qband at Setting 10 (all files overlayed)  
+
 
 ---
 
