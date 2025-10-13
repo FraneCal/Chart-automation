@@ -9,6 +9,19 @@ function getLabelFromFilename(filename) {
   return parts.length > 1 ? parts.slice(1).join("_") : base;
 }
 
+// Helper: round up to the next "nice" number
+function getNiceMax(value) {
+  if (value <= 0) return 1;
+  const order = Math.pow(10, Math.floor(Math.log10(value)));
+  const normalized = value / order;
+  let nice;
+  if (normalized <= 1) nice = 1;
+  else if (normalized <= 2) nice = 2;
+  else if (normalized <= 5) nice = 5;
+  else nice = 10;
+  return nice * order;
+}
+
 document.getElementById("fileInput").addEventListener("change", function(e) {
   const files = e.target.files;
   if (!files.length) return;
@@ -60,10 +73,11 @@ document.getElementById("fileInput").addEventListener("change", function(e) {
           mode: "markers+lines", type: "scatter", name: label,
           line: {color: traceColor}, marker: {color: traceColor}
         }];
+        const maxY = Math.max(...data.map(d => d.Flow));
         layout = {
           title: "Qband at Setting 1",
-          xaxis: { title: "Dvp [bar]", range: [0,7] },
-          yaxis: { title: "Flow [m³/h]" },
+          xaxis: { title: "Dvp [bar]", range: [0,8] },
+          yaxis: { title: "Flow [m³/h]", range: [0, getNiceMax(maxY)] },
           legend: { orientation: "h", y: -0.4, x: 0.5, xanchor: "center" }
         };
         exportData = data.map(d => ({DPM2: d.DPM2, Flow: d.Flow}));
@@ -78,14 +92,35 @@ document.getElementById("fileInput").addEventListener("change", function(e) {
           mode: "markers+lines", type: "scatter", name: label,
           line: {color: traceColor}, marker: {color: traceColor}
         }];
+        const maxY = Math.max(...data.map(d => d.Flow));
         layout = {
           title: "Qband at Setting 10",
           xaxis: { title: "Dvp [bar]", range: [0,7] },
-          yaxis: { title: "Flow [m³/h]" },
+          yaxis: { title: "Flow [m³/h]", range: [0, getNiceMax(maxY)] },
           legend: { orientation: "h", y: -0.4, x: 0.5, xanchor: "center" }
         };
         exportData = data.map(d => ({DPM2: d.DPM2, Flow: d.Flow}));
         exportCols = ["DPM2","Flow"];
+
+       } else if (uniqueUsers.length === 1 && uniqueUsers[0] === 2) {
+        // --- Qband Setting 2 ---
+        plotType = "Qband2";
+        traces = [{
+          x: data.map(d => d.DPM2),
+          y: data.map(d => d.Flow),
+          mode: "markers+lines", type: "scatter", name: label,
+          line: {color: traceColor}, marker: {color: traceColor}
+        }];
+        const maxY = Math.max(...data.map(d => d.Flow));
+        layout = {
+          title: "Qband at Setting 2",
+          xaxis: { title: "Dvp [bar]", range: [0,7] },
+          yaxis: { title: "Flow [m³/h]", range: [0, getNiceMax(maxY)] },
+          legend: { orientation: "h", y: -0.4, x: 0.5, xanchor: "center" }
+        };
+        exportData = data.map(d => ({DPM2: d.DPM2, Flow: d.Flow}));
+        exportCols = ["DPM2","Flow"];
+
 
       } else {
         // --- Flow characteristic ---
@@ -104,7 +139,7 @@ document.getElementById("fileInput").addEventListener("change", function(e) {
           line: {color: traceColor}, marker: {color: traceColor}
         };
 
-        // ✅ Add limits only for single plots
+        // Add limits only for single plots
         let limitTraces = [];
         const setting20 = 2;
         const setting100 = 10;
@@ -136,11 +171,12 @@ document.getElementById("fileInput").addEventListener("change", function(e) {
         }
 
         traces = [mainTrace, ...limitTraces];
+        const maxY = Math.max(...flows, ...limitTraces.flatMap(t => t.y.filter(v => v !== null)));
 
         layout = {
           title: "Flow characteristic",
           xaxis: { title: "Setting", range: [0,10], dtick: 1 },
-          yaxis: { title: "Flow [m³/h]" },
+          yaxis: { title: "Flow [m³/h]", range: [0, getNiceMax(maxY)] },
           legend: { orientation: "h", y: -0.4, x: 0.5, xanchor: "center" }
         };
         exportData = users.map((u,i)=>({User:u, Flow:flows[i]}));
@@ -173,27 +209,38 @@ document.getElementById("fileInput").addEventListener("change", function(e) {
 
       const pngBtn = document.createElement("button");
       pngBtn.textContent = "⬇ PNG";
-      pngBtn.addEventListener("click", () => {
-        Plotly.downloadImage(plotDiv, {
-          format: "png",
-          filename: file.name.replace(/\.[^/.]+$/, "") + "_plot",
-          width: 800,
-          height: 500
-        });
-      });
       buttons.appendChild(pngBtn);
 
       container.appendChild(buttons);
       container.appendChild(plotDiv);
       plotsDiv.appendChild(container);
 
-      Plotly.newPlot(plotDiv, traces, layout, {responsive: true}).then(() => {
-        Plotly.Plots.resize(plotDiv);
-      });
+      Plotly.newPlot(plotDiv, traces, layout, {responsive: true}).then(gd => {
+        Plotly.Plots.resize(gd);
 
-      allPlots.push({fileName: file.name, plotDiv, exportData, exportCols, plotType});
-      document.getElementById("globalButtons").style.display = "inline-flex";
-      plotCounter++;
+        pngBtn.onclick = () => {
+          Plotly.downloadImage(gd, {
+            format: "png",
+            filename: file.name.replace(/\.[^/.]+$/, "") + "_plot",
+            width: 1600,
+            height: 800
+          });
+        };
+
+        // ✅ store original traces/layout too for later combination
+        allPlots.push({
+          fileName: file.name,
+          plotDiv: gd,
+          exportData,
+          exportCols,
+          plotType,
+          data: traces,
+          layout
+        });
+
+        document.getElementById("globalButtons").style.display = "inline-flex";
+        plotCounter++;
+      });
     };
     reader.readAsText(file, "utf-8");
   });
@@ -201,15 +248,16 @@ document.getElementById("fileInput").addEventListener("change", function(e) {
 
 // ---- Global buttons ----
 document.getElementById("downloadAllPNGs").addEventListener("click", async () => {
+  if (!allPlots.length) return;
+
   const zip = new JSZip();
   for (let item of allPlots) {
-    let url = await Plotly.toImage(item.plotDiv, {format:"png", width:800, height:500});
-    let base64 = url.split(",")[1];
+    const url = await Plotly.toImage(item.plotDiv, {format:"png", width:1600, height:800});
+    const base64 = url.split(",")[1];
     zip.file(item.fileName.replace(/\.[^/.]+$/, "") + "_plot.png", base64, {base64:true});
   }
-  zip.generateAsync({type:"blob"}).then(content => {
-    saveAs(content, "All_Plots_PNGs.zip");
-  });
+  const content = await zip.generateAsync({ type: "blob" });
+  saveAs(content, "All_Plots_PNGs.zip");
 });
 
 document.getElementById("downloadAllExcels").addEventListener("click", () => {
@@ -227,31 +275,33 @@ document.getElementById("downloadAllExcels").addEventListener("click", () => {
 });
 
 document.getElementById("downloadCombinedExcel").addEventListener("click", () => {
+  if (!allPlots.length) return;
   let wb = XLSX.utils.book_new();
   allPlots.forEach(item => {
     let ws = XLSX.utils.json_to_sheet(item.exportData, {header:item.exportCols});
-    let sheetName = item.fileName.replace(/\.[^/.]+$/, "").substring(0,31);
+    let sheetName = item.fileName.replace(/\.[^/.]+$/, "").substring(0,31).replace(/[/\\?*[\]:]/g,"_");
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
   });
   XLSX.writeFile(wb, "Combined_Data.xlsx");
 });
 
-// ---- Combined PNGs by type (3 files) ----
+// ---- Combined PNGs by type ----
 document.getElementById("downloadCombinedPNG").addEventListener("click", async () => {
-  if (allPlots.length === 0) return;
+  if (!allPlots.length) return;
 
   const groups = { FlowChar: [], Qband1: [], Qband10: [] };
   allPlots.forEach(item => {
-    if (groups[item.plotType]) groups[item.plotType].push(item.plotDiv);
+    if (groups[item.plotType]) groups[item.plotType].push(item);
   });
 
   for (let type of ["FlowChar", "Qband1", "Qband10"]) {
-    const plots = groups[type];
-    if (plots.length === 0) continue;
+    const items = groups[type];
+    if (items.length === 0) continue;
 
     const combined = {data: [], layout: {}};
-    plots.forEach(gd => {
-      gd.data.forEach(trace => {
+
+    items.forEach(item => {
+      item.data.forEach(trace => {
         if (trace.name === "Upper limit" || trace.name === "Lower limit") return;
         combined.data.push({...trace});
       });
@@ -262,19 +312,20 @@ document.getElementById("downloadCombinedPNG").addEventListener("click", async (
     if (type === "Qband1") titleText = "Qband at Setting 1";
     if (type === "Qband10") titleText = "Qband at Setting 10";
 
+    const maxY = Math.max(...combined.data.flatMap(t => t.y));
     combined.layout = {
       title: titleText,
-      xaxis: {title: plots[0].layout.xaxis.title.text},
-      yaxis: {title: plots[0].layout.yaxis.title.text},
+      xaxis: { title: items[0].layout.xaxis.title.text },
+      yaxis: { title: items[0].layout.yaxis.title.text, range: [0, getNiceMax(maxY)] },
       legend: { orientation: "h", y: -0.3, x: 0.5, xanchor: "center" },
-      width: 800, height: 500
+      width: 1600, height: 800
     };
 
     const tempDiv = document.createElement("div");
     document.body.appendChild(tempDiv);
     await Plotly.newPlot(tempDiv, combined.data, combined.layout);
 
-    const url = await Plotly.toImage(tempDiv, {format:"png", width:800, height:500});
+    const url = await Plotly.toImage(tempDiv, {format:"png", width:1600, height:800});
     const a = document.createElement("a");
     a.href = url;
     a.download = `${titleText.replace(/\s+/g,"_")}.png`;
