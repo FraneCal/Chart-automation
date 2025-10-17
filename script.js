@@ -114,7 +114,7 @@ document.getElementById("fileInput").addEventListener("change", function (e) {
           layout = {
             title: "Closing force at 6 bar",
             xaxis: { title: "Flow [m³/h]" },
-            yaxis: { title: "Force [N]" },
+            yaxis: { title: "Force [N]", range: [0, 200] },
             legend: { orientation: "h", y: -0.3, x: 0.5, xanchor: "center" },
           };
 
@@ -142,11 +142,10 @@ document.getElementById("fileInput").addEventListener("change", function (e) {
             },
           ];
 
-          const maxY = Math.max(...data.map((d) => d.Force));
           layout = {
             title: hasFlow ? "Force with flow" : "Force without flow",
             xaxis: { title: "Position [mm]" },
-            yaxis: { title: "Force [N]", range: [0, getNiceMax(maxY)] },
+            yaxis: { title: "Force [N]", range: [0, 200] },
             legend: { orientation: "h", y: -0.3, x: 0.5, xanchor: "center" },
           };
 
